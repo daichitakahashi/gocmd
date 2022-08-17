@@ -26,6 +26,51 @@ func chdir(t *testing.T, path string) {
 	})
 }
 
+func TestModuleGoVersion(t *testing.T) {
+
+	t.Run("valid", func(t *testing.T) {
+		chdir(t, "testdata/valid")
+
+		ver, err := ModuleGoVersion()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ver != "go1.19" {
+			t.Fatalf("got unexpected version: %s", ver)
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		chdir(t, "testdata/invalid")
+
+		_, err := ModuleGoVersion()
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		chdir(t, "testdata/empty")
+
+		_, err := ModuleGoVersion()
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		chdir(t, t.TempDir())
+
+		_, err := ModuleGoVersion()
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	})
+}
+
 func TestValidModuleGoVersion(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		// move working directory to testdata to avoid hitting module's "go.mod"
