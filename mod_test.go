@@ -4,20 +4,17 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"testing"
-
-	"golang.org/x/mod/modfile"
 )
 
-func TestFindGoMod(t *testing.T) {
-	// t.Parallel()
-	// move working directory to testdata to avoid hitting module's "go.mod"
+func chdir(t *testing.T, path string) {
+	t.Helper()
+
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = os.Chdir("testdata")
+	err = os.Chdir(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,121 +24,67 @@ func TestFindGoMod(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-
-	assert := func(t *testing.T, mod *modfile.File, path string) {
-		t.Helper()
-
-		for _, c := range mod.Module.Syntax.Comments.Before {
-			if c.Token == "// "+path {
-				return
-			}
-		}
-		t.Log("unexpected mod file")
-		data, _ := mod.Format()
-		t.Fatal(string(data))
-	}
-
-	testCases := []struct {
-		path string
-		test func(t *testing.T, mod *modfile.File, err error)
-	}{
-		{
-			path: "root",
-			test: func(t *testing.T, mod *modfile.File, err error) {
-				if err != nil {
-					t.Fatal(err)
-				}
-				assert(t, mod, "go.mod")
-			},
-		}, {
-			path: "root/a/b/c",
-			test: func(t *testing.T, mod *modfile.File, err error) {
-				if err != nil {
-					t.Fatal(err)
-				}
-				assert(t, mod, "a/b/go.mod")
-			},
-		}, {
-			path: "root/a/b/c/d",
-			test: func(t *testing.T, mod *modfile.File, err error) {
-				if err != nil {
-					t.Fatal(err)
-				}
-				assert(t, mod, "a/b/c/d/go.mod")
-			},
-		}, {
-			path: "invalid/x/y",
-			test: func(t *testing.T, mod *modfile.File, err error) {
-				if err == nil {
-					t.Log("unexpected mod file")
-					data, _ := mod.Format()
-					t.Fatal(string(data))
-				}
-				if !errors.Is(err, fs.ErrNotExist) {
-					t.Fatalf("unexpected error: %s", err)
-				}
-			},
-		}, {
-			path: "invalid/x/y/z/empty",
-			test: func(t *testing.T, mod *modfile.File, err error) {
-				if err == nil {
-					t.Log("unexpected mod file")
-					data, _ := mod.Format()
-					t.Fatal(string(data))
-				}
-			},
-		}, {
-			path: "invalid/x/y/z/bad",
-			test: func(t *testing.T, mod *modfile.File, err error) {
-				if err == nil {
-					t.Log("unexpected mod file")
-					data, _ := mod.Format()
-					t.Fatal(string(data))
-				}
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.path, func(t *testing.T) {
-			t.Parallel()
-
-			p := filepath.FromSlash(tc.path)
-			mod, err := findGoMod(p)
-			tc.test(t, mod, err)
-		})
-	}
 }
 
 func TestValidModuleGoVersion(t *testing.T) {
-	t.Parallel()
+	t.Run("valid", func(t *testing.T) {
+		// move working directory to testdata to avoid hitting module's "go.mod"
+		chdir(t, "testdata/valid")
 
-	const dir = "testdata/root"
+		err := ValidModuleGoVersion("go1.19")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	err := ValidModuleGoVersion(dir, "go1.19")
-	if err != nil {
-		t.Fatal(err)
-	}
+		err = ValidModuleGoVersion("go1.19beta1")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	err = ValidModuleGoVersion(dir, "go1.19beta1")
-	if err != nil {
-		t.Fatal(err)
-	}
+		err = ValidModuleGoVersion("go1.18.5")
+		if err == nil {
+			t.Fatalf("unexpected success")
+		}
+		if !errors.Is(err, ErrUnexpectedGoVersion) {
+			t.Fatalf("unexpected error: %s", err)
+		}
 
-	err = ValidModuleGoVersion(dir, "go1.18.5")
-	if err == nil {
-		t.Fatalf("unexpected success")
-	}
-	if !errors.Is(err, ErrUnexpectedGoVersion) {
-		t.Fatalf("unexpected error: %s", err)
-	}
+		err = ValidModuleGoVersion("unknown")
+		if err == nil {
+			t.Fatalf("unexpected success")
+		}
+		if !errors.Is(err, ErrInvalidVersion) {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	})
 
-	err = ValidModuleGoVersion(dir, "unknown")
-	if err == nil {
-		t.Fatalf("unexpected success")
-	}
-	if !errors.Is(err, ErrInvalidVersion) {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	t.Run("invalid", func(t *testing.T) {
+		chdir(t, "testdata/invalid")
+
+		err := ValidModuleGoVersion("go1.19")
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		chdir(t, "testdata/empty")
+
+		err := ValidModuleGoVersion("go1.19")
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		chdir(t, t.TempDir())
+
+		err := ValidModuleGoVersion("go1.19")
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	})
 }
