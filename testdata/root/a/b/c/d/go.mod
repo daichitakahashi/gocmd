@@ -1,3 +1,4 @@
+// a/b/c/d/go.mod
 module github.com/daichitakahashi/gocmd
 
 go 1.19
