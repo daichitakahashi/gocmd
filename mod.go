@@ -3,7 +3,6 @@ package gocmd
 import (
 	"errors"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +17,6 @@ func findGoMod(dir string) (*modfile.File, error) {
 		p := filepath.Join(dir, "go.mod")
 		data, err = os.ReadFile(p)
 		if err == nil {
-			log.Println(p)
 			break
 		}
 		if !errors.Is(err, fs.ErrNotExist) {
@@ -47,12 +45,9 @@ var ErrUnexpectedGoVersion = errors.New("unexpected go version in go.mod")
 // If "go.mod" is not found, it checks parent directories recursively.
 // However, when the given dir is relative, it stops to search at working directory.
 func ValidModuleGoVersion(dir, version string) error {
-	valid, err := ValidVersion(version)
+	err := ValidVersion(version)
 	if err != nil {
 		return err
-	}
-	if !valid {
-		return ErrInvalidVersion
 	}
 
 	dir = dir[len(filepath.VolumeName(dir)):] // remove volume name
