@@ -81,16 +81,15 @@ func TestStableVersion(t *testing.T) {
 func currentVersion(t *testing.T) string {
 	t.Helper()
 
-	result, err := exec.Command("go", "env", "GOVERSION").Output()
+	cur, err := CurrentVersion()
 	if err != nil {
 		t.Fatal(err)
 	}
-	v := string(bytes.TrimSpace(result))
-	prefix := versionRe.FindString(v)
+	prefix := versionRe.FindString(cur)
 	if prefix < "go1.19" {
-		t.Skipf("test skipped because version of go command is less than go1.19: %s", v)
+		t.Skipf("test skipped because version of go command is less than go1.19: %s", cur)
 	}
-	return v
+	return cur
 }
 
 // check following

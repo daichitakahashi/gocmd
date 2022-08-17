@@ -104,14 +104,27 @@ func StableVersion(version string) (bool, error) {
 	return versions[version], nil
 }
 
+func commandVersion(cmd string) (string, error) {
+	gotVersion, err := exec.Command(cmd, "env", "GOVERSION").Output()
+	if err != nil {
+		return "", err
+	}
+	return string(bytes.TrimSpace(gotVersion)), nil
+}
+
+// CurrentVersion returns the version of "go" command.
+func CurrentVersion() (string, error) {
+	return commandVersion("go")
+}
+
 var ErrNotFound = exec.ErrNotFound
 
 func checkCommandVersion(cmd, version string) error {
-	gotVersion, err := exec.Command(cmd, "env", "GOVERSION").Output()
+	gotVersion, err := commandVersion(cmd)
 	if err != nil {
 		return err
 	}
-	if version != string(bytes.TrimSpace(gotVersion)) {
+	if version != gotVersion {
 		return fmt.Errorf("got unexpected version %q from %q", gotVersion, cmd)
 	}
 	return nil
@@ -174,11 +187,10 @@ func LookupLatest(version string) (string, error) {
 	expectedVer := versionRe.FindString(version)
 
 	// check "go" command
-	r, err := exec.Command("go", "env", "GOVERSION").Output()
+	cur, err := CurrentVersion()
 	if err != nil {
 		return "", err
 	}
-	cur := string(bytes.TrimSpace(r))
 	if strings.HasPrefix(cur, expectedVer) {
 		return "go", nil
 	}
