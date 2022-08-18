@@ -117,6 +117,12 @@ func CurrentVersion() (string, error) {
 	return commandVersion("go")
 }
 
+// MajorVersion returns major version of the given version.
+// If the given version is invalid, returned value is an empty string.
+func MajorVersion(version string) string {
+	return versionRe.FindString(version)
+}
+
 var ErrNotFound = exec.ErrNotFound
 
 func checkCommandVersion(cmd, version string) error {
@@ -175,9 +181,9 @@ func Lookup(version string) (string, error) {
 var versionRe = regexp.MustCompile(`^go[1-9][0-9]*\.(?:0|[1-9][0-9]*)`)
 
 // LookupLatest finds a go executable having the given version.
-// Behavior is similar to Lookup, but it collects versions that have the same MINOR version.
+// Behavior is similar to Lookup, but it collects versions that have the same major version.
 // This finds the executable that has the latest version in the collected list.
-// If "go" command has the same MINOR version, it is prioritized.
+// If "go" command has the same major version, it is prioritized.
 func LookupLatest(version string) (string, error) {
 	err := ValidVersion(version)
 	if err != nil {

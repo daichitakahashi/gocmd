@@ -77,6 +77,18 @@ func TestStableVersion(t *testing.T) {
 	}
 }
 
+func TestMajorVersion(t *testing.T) {
+	major := MajorVersion("go1.18.5")
+	if major != "go1.18" {
+		t.Fatalf("got unexpected major version %s, expected go1.18", major)
+	}
+
+	major = MajorVersion("unknown")
+	if major != "" {
+		t.Fatalf("got unexpected major version %s, expected empty string", major)
+	}
+}
+
 // current version must be larger than "go1.19"
 func currentVersion(t *testing.T) string {
 	t.Helper()
