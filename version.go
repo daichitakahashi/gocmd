@@ -104,12 +104,24 @@ func StableVersion(version string) (bool, error) {
 	return versions[version], nil
 }
 
+var (
+	verCache = map[string]string{}
+	vm       sync.Mutex
+)
+
 func commandVersion(cmd string) (string, error) {
+	vm.Lock()
+	defer vm.Unlock()
+	if v, ok := verCache[cmd]; ok {
+		return v, nil
+	}
 	gotVersion, err := exec.Command(cmd, "env", "GOVERSION").Output()
 	if err != nil {
 		return "", err
 	}
-	return string(bytes.TrimSpace(gotVersion)), nil
+	v := string(bytes.TrimSpace(gotVersion))
+	verCache[cmd] = v
+	return v, nil
 }
 
 // CurrentVersion returns the version of "go" command.
@@ -283,3 +295,66 @@ func (b *byLatestGoVersion) Swap(i, j int) {
 }
 
 var _ sort.Interface = (*byLatestGoVersion)(nil)
+
+type Mode uint8
+
+const (
+	ModeExact Mode = 1 << iota
+	ModeLatest
+	ModeFallback
+)
+
+// Determine go command with given version, and return its path and actual version.
+// Following mode is available.
+//   - ModeExact determines command by using Lookup
+//   - ModeLatest determines command by using LookupLatest
+//   - ModeFallback determines command by using LookupLatest, but if no command was found, fallbacks to "go" command
+func Determine(version string, mode Mode) (path, ver string, err error) {
+	if mode == ModeExact {
+		path, err = Lookup(version)
+		if err != nil {
+			return "", "", fmt.Errorf(`failed to find "go" command which has the version %s exactly`, version)
+		}
+	} else {
+		path, err = LookupLatest(version)
+		if err != nil {
+			if mode == ModeLatest {
+				return "", "", fmt.Errorf(`failed to find "go" command that has major version %s: %w`, MajorVersion(version), err)
+			}
+			path = "go" // ModeFallback
+		}
+	}
+
+	if path == "go" {
+		goVer, err := CurrentVersion()
+		if err != nil {
+			return "", "", fmt.Errorf(`failed to get "go" version`)
+		}
+		return path, goVer, nil
+	}
+	return path, filepath.Base(path), nil
+}
+
+// DetermineFromModuleGoVersion determines go command with the version from go.mod, and returns its path and actual version.
+// Every mode uses LookupLatest. In ModeFallback, if no command was found, fallbacks to "go"command.
+func DetermineFromModuleGoVersion(mode Mode) (path, ver string, _ error) {
+	modVer, err := ModuleGoVersion()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read go.mod: %w", err)
+	}
+	path, err = LookupLatest(modVer)
+	if err != nil {
+		switch mode {
+		case ModeFallback:
+			goVer, _ := CurrentVersion() // CurrentVersion is already called and succeeded in LookupLatest
+			return "go", goVer, nil
+		default: // ModeExact, ModeLatest
+			return "", "", fmt.Errorf(`failed to find "go" command that has major version %s: %w`, modVer, err)
+		}
+	}
+	if path == "go" {
+		goVer, _ := CurrentVersion()
+		return path, goVer, nil
+	}
+	return path, filepath.Base(path), nil
+}

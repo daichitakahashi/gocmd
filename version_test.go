@@ -242,3 +242,144 @@ func TestLookupLatest(t *testing.T) {
 		t.Fatalf("unknown: expected error: %v, got error: %v, got path: %s", ErrInvalidVersion, err, path)
 	}
 }
+
+func TestDetermine(t *testing.T) {
+	t.Parallel()
+	checkPrerequisites(t)
+
+	assert := func(t *testing.T, path, gotVer, wantVer string) {
+		t.Helper()
+
+		if gotVer != wantVer {
+			t.Fatalf("unexpected version: want: %s, got %s", wantVer, gotVer)
+		}
+		err := checkCommandVersion(path, gotVer)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cur := currentVersion(t)
+
+	t.Run("exact", func(t *testing.T) {
+		t.Parallel()
+
+		path, ver, err := Determine("go1.18.5", ModeExact)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert(t, path, ver, "go1.18.5")
+
+		_, _, err = Determine("unknown", ModeExact)
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+
+		path, ver, err = Determine(cur, ModeExact)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert(t, path, ver, cur)
+	})
+
+	t.Run("latest", func(t *testing.T) {
+		t.Parallel()
+
+		path, ver, err := Determine("go1.18", ModeLatest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert(t, path, ver, "go1.18.5")
+
+		_, _, err = Determine("unknown", ModeLatest)
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+
+		path, ver, err = Determine(cur, ModeExact)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert(t, path, ver, cur)
+	})
+
+	t.Run("fallback", func(t *testing.T) {
+		t.Parallel()
+
+		path, ver, err := Determine("go1.18", ModeFallback)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert(t, path, ver, "go1.18.5")
+
+		path, ver, err = Determine("unknown", ModeFallback)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if path != "go" {
+			t.Fatalf("unexpected path: want: go, got %s", path)
+		}
+		assert(t, path, ver, cur)
+	})
+}
+
+func TestDetermineFromModuleGoVersion(t *testing.T) {
+
+	assert := func(t *testing.T, path, gotVer, wantVer string) {
+		t.Helper()
+
+		if MajorVersion(gotVer) != wantVer {
+			t.Fatalf("unexpected version: want: %s, got %s", wantVer, gotVer)
+		}
+		err := checkCommandVersion(path, gotVer)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cur := currentVersion(t)
+
+	t.Run("valid", func(t *testing.T) {
+		chdir(t, "testdata/valid")
+
+		path, ver, err := DetermineFromModuleGoVersion(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert(t, path, ver, "go1.19")
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		chdir(t, "testdata/invalid")
+
+		_, _, err := DetermineFromModuleGoVersion(0)
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+	})
+
+	t.Run("future", func(t *testing.T) {
+		chdir(t, "testdata/future")
+
+		_, _, err := DetermineFromModuleGoVersion(ModeLatest)
+		if err == nil {
+			t.Fatal("unexpected success")
+		}
+
+		path, ver, err := DetermineFromModuleGoVersion(ModeFallback)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert(t, path, ver, cur)
+	})
+
+	t.Run("old", func(t *testing.T) {
+		chdir(t, "testdata/old")
+
+		path, ver, err := DetermineFromModuleGoVersion(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert(t, path, ver, "go1.18")
+	})
+}
