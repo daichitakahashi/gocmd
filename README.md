@@ -1,4 +1,7 @@
 # gocmd
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/daichitakahashi/gocmd.svg)](https://pkg.go.dev/github.com/daichitakahashi/gocmd)
+
 In the Go world, we can install several versions of Go without **\*\*env** by using [wrapper program](https://cs.opensource.google/go/dl).
 ```shell
 $ go install golang.org/dl/go1.19@latest
