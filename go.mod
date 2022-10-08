@@ -4,7 +4,5 @@ go 1.19
 
 require (
 	github.com/google/go-cmp v0.5.8
-	golang.org/x/mod v0.5.1
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 )
-
-require golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 // indirect
