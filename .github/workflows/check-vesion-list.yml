@@ -1,6 +1,7 @@
 name: check-version-list
 on:
-  schedule: '0 0 * * *' # 9:00(JST)
+  schedule:
+    - cron: '0 0 * * *' # 9:00(JST)
 jobs:
   generate:
     runs-on: ubuntu-latest
