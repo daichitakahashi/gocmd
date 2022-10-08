@@ -2,67 +2,17 @@ package gocmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/daichitakahashi/gocmd/internal"
 )
-
-var (
-	m                sync.Mutex
-	cache            []byte
-	cacheAllVersions map[string]bool
-)
-
-type version struct {
-	Version string `json:"version"`
-	Stable  bool   `json:"stable"`
-	// Files []any `json:"files"`
-}
-
-func fetchAllVersions() (map[string]bool, error) {
-	m.Lock()
-	defer m.Unlock()
-
-	if cacheAllVersions != nil {
-		return cacheAllVersions, nil
-	}
-	if cache == nil {
-		var c http.Client
-		resp, err := c.Get("https://go.dev/dl/?mode=json&include=all")
-		if err != nil {
-			return nil, err
-		}
-		data, err := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return nil, errors.New(http.StatusText(resp.StatusCode))
-		}
-		if err != nil {
-			return nil, err
-		}
-		cache = data
-	}
-	var v []version
-	err := json.Unmarshal(cache, &v)
-	if err != nil {
-		return nil, err
-	}
-
-	m := map[string]bool{}
-	for _, vv := range v {
-		m[vv.Version] = vv.Stable
-	}
-	cacheAllVersions = m
-	return m, nil
-}
 
 var ErrInvalidVersion = errors.New("invalid version")
 
@@ -76,15 +26,27 @@ func ValidVersion(version string) error {
 		return ErrInvalidVersion
 	}
 
-	versions, err := fetchAllVersions()
+	var ok bool
+	internal.Versions(func(versions map[string]bool) {
+		_, ok = versions[version]
+	})
+	if ok {
+		return nil
+	}
+	fetched, err := internal.FetchOnce()
 	if err != nil {
 		return err
 	}
-	_, ok := versions[version]
-	if !ok {
-		return ErrInvalidVersion
+	if fetched {
+		internal.Versions(func(versions map[string]bool) {
+			_, ok = versions[version]
+		})
+		if ok {
+			return nil
+		}
 	}
-	return nil
+	return ErrInvalidVersion
+
 }
 
 // StableVersion returns whether the given go version exists and is stable.
@@ -97,11 +59,26 @@ func StableVersion(version string) (bool, error) {
 		return false, ErrInvalidVersion
 	}
 
-	versions, err := fetchAllVersions()
+	var stable, ok bool
+	internal.Versions(func(versions map[string]bool) {
+		stable, ok = versions[version]
+	})
+	if ok {
+		return stable, nil
+	}
+	fetched, err := internal.FetchOnce()
 	if err != nil {
 		return false, err
 	}
-	return versions[version], nil
+	if fetched {
+		internal.Versions(func(versions map[string]bool) {
+			stable, ok = versions[version]
+		})
+		if ok {
+			return stable, nil
+		}
+	}
+	return false, ErrInvalidVersion
 }
 
 var (
@@ -227,15 +204,18 @@ func LookupLatest(version string) (string, error) {
 	return "", ErrNotFound
 }
 
+// this function must be called after internal.FetchAllVersions
 func findCandidates(expectedVer string) []string {
 	v := &byLatestGoVersion{
 		expectedVer: expectedVer,
 	}
-	for vv := range cacheAllVersions {
-		if strings.HasPrefix(vv, expectedVer) {
-			v.versions = append(v.versions, vv)
+	internal.Versions(func(versions map[string]bool) {
+		for vv := range versions {
+			if strings.HasPrefix(vv, expectedVer) {
+				v.versions = append(v.versions, vv)
+			}
 		}
-	}
+	})
 	sort.Sort(v)
 	return v.versions
 }
