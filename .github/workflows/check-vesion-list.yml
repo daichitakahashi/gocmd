@@ -1,0 +1,27 @@
+name: check-version-list
+on:
+  schedule: '0 0 * * *' # 9:00(JST)
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: main
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.19'
+      - name: generate
+        run: go generate ./internal
+      - name: create pull request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          branch: add-new-version
+          branch-suffix: timestamp
+          delete-branch: true
+          commit-message: |
+            Update: add new version of Go
+            
+            New Go version was detected in https://go.dev/dl/?mode=json&include=all
+          title: "Update: add new version of Go"
+          body: "New Go version was detected in https://go.dev/dl/?mode=json&include=all"
