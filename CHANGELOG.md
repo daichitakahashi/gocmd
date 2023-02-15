@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.0.9](https://github.com/daichitakahashi/gocmd/compare/v1.0.8...v1.0.9) - 2023-02-15
+- Bump golang.org/x/mod from v0.6.0-dev.0.20220419223038-86c51ed26bb4 to 0.7.0 by @daichitakahashi in https://github.com/daichitakahashi/gocmd/pull/19
+- Update: add new version of Go by @github-actions in https://github.com/daichitakahashi/gocmd/pull/21
+
 ## [v1.0.8](https://github.com/daichitakahashi/gocmd/compare/v1.0.7...v1.0.8) - 2023-02-02
 - Update: add new version of Go by @github-actions in https://github.com/daichitakahashi/gocmd/pull/17
 
