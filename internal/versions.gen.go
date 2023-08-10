@@ -189,6 +189,7 @@ var versions = map[string]bool{
 	"go1.20rc1":   false,
 	"go1.20rc2":   false,
 	"go1.20rc3":   false,
+	"go1.21.0":    true,
 	"go1.21rc2":   false,
 	"go1.21rc3":   false,
 	"go1.21rc4":   false,
