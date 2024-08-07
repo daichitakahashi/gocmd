@@ -1,5 +1,8 @@
 # Changelog
 
+## [v1.0.35](https://github.com/daichitakahashi/gocmd/compare/v1.0.34...v1.0.35) - 2024-08-07
+- Update: add new version of Go by @github-actions in https://github.com/daichitakahashi/gocmd/pull/78
+
 ## [v1.0.34](https://github.com/daichitakahashi/gocmd/compare/v1.0.33...v1.0.34) - 2024-07-17
 - Update: add new version of Go by @github-actions in https://github.com/daichitakahashi/gocmd/pull/76
 
